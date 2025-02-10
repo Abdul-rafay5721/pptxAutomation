@@ -5,8 +5,12 @@ from pptx import Presentation
 from pptx.util import Inches, Pt  # Add this import
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor  # Add this import
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+# Configure upload folder
+app.config['UPLOAD_FOLDER'] = '/tmp'  # Use /tmp directory on Linux
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
 
 # Function to replace placeholders in the presentation
 def replace_placeholders(presentation, data):
@@ -119,9 +123,10 @@ def generate():
     if template_file.filename == '':
         return 'No template selected', 400
 
-    # Save template file temporarily
-    template_path = os.path.join(os.getcwd(), "temp_template.pptx")
-    output_path = os.path.join(os.getcwd(), "output_proposal.pptx")
+    # Save template file temporarily with secure filename
+    template_filename = secure_filename(template_file.filename)
+    template_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{template_filename}")
+    output_path = os.path.join(app.config['UPLOAD_FOLDER'], "output_proposal.pptx")
     template_file.save(template_path)
 
     data = {
@@ -180,7 +185,7 @@ def generate():
     if 'image' in request.files:
         image_file = request.files['image']
         if image_file.filename != '':
-            image_path = os.path.join(os.getcwd(), image_file.filename)
+            image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(image_file.filename))
             image_file.save(image_path)
             replace_image_placeholder(presentation, "{{image}}", image_path)
 
@@ -191,20 +196,30 @@ def generate():
     # Save the modified presentation
     presentation.save(output_path)
 
+    # Clean up files immediately after sending
     @after_this_request
     def cleanup(response):
-        # Clean up temporary files
-        if os.path.exists(template_path):
-            os.remove(template_path)
+        try:
+            if os.path.exists(template_path):
+                os.remove(template_path)
+            if os.path.exists(output_path):
+                os.remove(output_path)
+            if 'image' in request.files and request.files['image'].filename != '':
+                image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(request.files['image'].filename))
+                if os.path.exists(image_path):
+                    os.remove(image_path)
+        except Exception as e:
+            app.logger.error(f"Error cleaning up files: {e}")
         return response
 
     # Return file for download
     return send_file(
         output_path,
         as_attachment=True,
-        download_name=f"proposal_{data['company']}.pptx",
+        download_name=f"proposal_{secure_filename(data['company'])}.pptx",
         mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
     )
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # Production settings
+    app.run(host='0.0.0.0', port=8080)
