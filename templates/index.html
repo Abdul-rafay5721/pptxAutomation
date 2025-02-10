@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proposal Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+            color: #343a40;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        h1 {
+            text-align: center;
+            color: #d4af37;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        input[type="text"], input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+        }
+        .bullet-point {
+            display: flex;
+            align-items: center;
+            margin-top: 5px;
+        }
+        .bullet-point input {
+            flex: 1;
+        }
+        .bullet-point button {
+            margin-left: 10px;
+            padding: 10px;
+            background-color: #d4af37;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            cursor: pointer;
+        }
+        button[type="submit"] {
+            width: 100%;
+            padding: 10px;
+            background-color: #d4af37;
+            border: none;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+    <script>
+        function addBulletPoint() {
+            const bulletPointsDiv = document.getElementById('bulletPoints');
+            const div = document.createElement('div');
+            div.className = 'bullet-point';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'bulletPoints';
+            input.placeholder = 'Enter bullet point';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerText = 'Remove';
+            button.onclick = function() {
+                bulletPointsDiv.removeChild(div);
+            };
+            div.appendChild(input);
+            div.appendChild(button);
+            bulletPointsDiv.appendChild(div);
+        }
+
+        function addDeliverableBullet() {
+            const deliverableBulletsDiv = document.getElementById('deliverableBullets');
+            const div = document.createElement('div');
+            div.className = 'bullet-point';
+            const inputDeliverable = document.createElement('input');
+            inputDeliverable.type = 'text';
+            inputDeliverable.name = 'deliverableBullets';
+            inputDeliverable.placeholder = 'Enter deliverable bullet';
+            const inputAmount = document.createElement('input');
+            inputAmount.type = 'text';
+            inputAmount.name = 'amounts';
+            inputAmount.placeholder = 'Enter amount';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerText = 'Remove';
+            button.onclick = function() {
+                deliverableBulletsDiv.removeChild(div);
+            };
+            div.appendChild(inputDeliverable);
+            div.appendChild(inputAmount);
+            div.appendChild(button);
+            deliverableBulletsDiv.appendChild(div);
+        }
+
+        function addActivityPoint() {
+            const activityPointsDiv = document.getElementById('activityPoints');
+            const div = document.createElement('div');
+            div.className = 'bullet-point';
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.name = 'activityPoints';
+            input.placeholder = 'Enter activity';
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.innerText = 'Remove';
+            button.onclick = function() {
+                activityPointsDiv.removeChild(div);
+            };
+            div.appendChild(input);
+            div.appendChild(button);
+            activityPointsDiv.appendChild(div);
+        }
+
+        function addDummyData() {
+            document.getElementById('company').value = 'Dummy Company';
+            document.getElementById('date').value = '2023-10-01';
+            document.getElementById('service').value = 'Dummy Service';
+
+            const bulletPointsDiv = document.getElementById('bulletPoints');
+            bulletPointsDiv.innerHTML = '';
+            for (let i = 1; i <= 3; i++) {
+                const div = document.createElement('div');
+                div.className = 'bullet-point';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = 'bulletPoints';
+                input.value = `Dummy Bullet Point ${i}`;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.innerText = 'Remove';
+                button.onclick = function() {
+                    bulletPointsDiv.removeChild(div);
+                };
+                div.appendChild(input);
+                div.appendChild(button);
+                bulletPointsDiv.appendChild(div);
+            }
+
+            const deliverableBulletsDiv = document.getElementById('deliverableBullets');
+            deliverableBulletsDiv.innerHTML = '';
+            for (let i = 1; i <= 3; i++) {
+                const div = document.createElement('div');
+                div.className = 'bullet-point';
+                const inputDeliverable = document.createElement('input');
+                inputDeliverable.type = 'text';
+                inputDeliverable.name = 'deliverableBullets';
+                inputDeliverable.value = `Dummy Deliverable ${i}`;
+                const inputAmount = document.createElement('input');
+                inputAmount.type = 'text';
+                inputAmount.name = 'amounts';
+                inputAmount.value = `$${i * 100}`;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.innerText = 'Remove';
+                button.onclick = function() {
+                    deliverableBulletsDiv.removeChild(div);
+                };
+                div.appendChild(inputDeliverable);
+                div.appendChild(inputAmount);
+                div.appendChild(button);
+                deliverableBulletsDiv.appendChild(div);
+            }
+
+            const activityPointsDiv = document.getElementById('activityPoints');
+            activityPointsDiv.innerHTML = '';
+            for (let i = 1; i <= 3; i++) {
+                const div = document.createElement('div');
+                div.className = 'bullet-point';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.name = 'activityPoints';
+                input.value = `Dummy Activity ${i}`;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.innerText = 'Remove';
+                button.onclick = function() {
+                    activityPointsDiv.removeChild(div);
+                };
+                div.appendChild(input);
+                div.appendChild(button);
+                activityPointsDiv.appendChild(div);
+            }
+
+            document.getElementById('withoutVat').value = '$1000.00';
+            document.getElementById('total').value = '$1150.00';
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <h1>Proposal Generator</h1>
+        <form action="/generate" method="post" enctype="multipart/form-data">
+            <label for="company">Company:</label>
+            <input type="text" id="company" name="company" required>
+            <label for="date">Date:</label>
+            <input type="date" id="date" name="date" required>
+            <label for="service">Service:</label>
+            <input type="text" id="service" name="service" required>
+            <div id="bulletPoints">
+                <label>Bullet Points:</label>
+                <div class="bullet-point">
+                    <input type="text" name="bulletPoints" placeholder="Enter bullet point">
+                    <button type="button" onclick="addBulletPoint()">Add</button>
+                </div>
+            </div>
+            <div id="deliverableBullets">
+                <label>Deliverable Bullets:</label>
+                <div class="bullet-point">
+                    <input type="text" name="deliverableBullets" placeholder="Enter deliverable bullet">
+                    <input type="text" name="amounts" placeholder="Enter amount">
+                    <button type="button" onclick="addDeliverableBullet()">Add</button>
+                </div>
+            </div>
+            <div id="activityPoints">
+                <label>Activities:</label>
+                <div class="bullet-point">
+                    <input type="text" name="activityPoints" placeholder="Enter activity">
+                    <button type="button" onclick="addActivityPoint()">Add</button>
+                </div>
+            </div>
+            <div class="bullet-point">
+                <label for="withoutVat">Total Without VAT:</label>
+                <input type="text" id="withoutVat" name="withoutVat" placeholder="Enter total without VAT">
+                <label for="total">Total With VAT:</label>
+                <input type="text" id="total" name="total" placeholder="Enter total with VAT">
+            </div>
+            <label for="template">Upload Template:</label>
+            <input type="file" id="template" name="template" accept=".pptx" required>
+            <label for="image">Upload Image:</label>
+            <input type="file" id="image" name="image" accept="image/*">
+            <button type="button" onclick="addDummyData()">Add Dummy Data</button>
+            <button type="submit">Generate Presentation</button>
+        </form>
+    </div>
+</body>
+</html>
