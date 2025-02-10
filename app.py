@@ -8,9 +8,14 @@ from pptx.dml.color import RGBColor  # Add this import
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-# Configure upload folder
-app.config['UPLOAD_FOLDER'] = '/tmp'  # Use /tmp directory on Linux
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Limit file size to 16MB
+# Configure upload folder and base directory
+app.config['UPLOAD_FOLDER'] = '/tmp' if os.name != 'nt' else os.environ.get('TEMP')  # Handle both Linux and Windows
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Print debugging information
+print(f"Current working directory: {os.getcwd()}")
+print(f"Base directory: {BASE_DIR}")
 
 # Function to replace placeholders in the presentation
 def replace_placeholders(presentation, data):
@@ -116,18 +121,21 @@ def index():
 
 @app.route('/generate', methods=['POST'])
 def generate():
-    # Get template file
-    if 'template' not in request.files:
-        return 'No template file uploaded', 400
-    template_file = request.files['template']
-    if template_file.filename == '':
-        return 'No template selected', 400
+    # Use template from current directory with more robust path handling
+    template_path = os.path.join(BASE_DIR, "template_proposal.pptx")
+    print(f"Looking for template at: {template_path}")  # Debug print
+    
+    if not os.path.exists(template_path):
+        # Try alternate locations
+        alt_template_path = os.path.join(os.getcwd(), "template_proposal.pptx")
+        print(f"Trying alternate path: {alt_template_path}")  # Debug print
+        
+        if os.path.exists(alt_template_path):
+            template_path = alt_template_path
+        else:
+            return f'Template file not found. Tried:\n{template_path}\n{alt_template_path}', 404
 
-    # Save template file temporarily with secure filename
-    template_filename = secure_filename(template_file.filename)
-    template_path = os.path.join(app.config['UPLOAD_FOLDER'], f"temp_{template_filename}")
     output_path = os.path.join(app.config['UPLOAD_FOLDER'], "output_proposal.pptx")
-    template_file.save(template_path)
 
     data = {
         "company": request.form['company'],
@@ -196,12 +204,10 @@ def generate():
     # Save the modified presentation
     presentation.save(output_path)
 
-    # Clean up files immediately after sending
+    # Clean up only output and image files
     @after_this_request
     def cleanup(response):
         try:
-            if os.path.exists(template_path):
-                os.remove(template_path)
             if os.path.exists(output_path):
                 os.remove(output_path)
             if 'image' in request.files and request.files['image'].filename != '':
