@@ -7,10 +7,11 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pptx.dml.color import RGBColor  # Add this import
 from werkzeug.utils import secure_filename
 from datetime import datetime
+import tempfile
 
 app = Flask(__name__)
-# Configure upload folder and base directory
-app.config['UPLOAD_FOLDER'] = '/tmp' if os.name != 'nt' else os.environ.get('TEMP')  # Handle both Linux and Windows
+# Update upload folder to use system temp directory
+app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -123,6 +124,10 @@ def index():
 @app.route('/generate', methods=['POST'])
 def generate():
     try:
+        # Create temp directory with proper permissions if it doesn't exist
+        if not os.path.exists(app.config['UPLOAD_FOLDER']):
+            os.makedirs(app.config['UPLOAD_FOLDER'], mode=0o777)
+
         # Use template from current directory with more robust path handling
         template_path = os.path.join(BASE_DIR, "template_proposal.pptx")
         print(f"Looking for template at: {template_path}")  # Debug print
@@ -205,39 +210,42 @@ def generate():
 
         # Save the modified presentation
         presentation.save(output_path)
+        os.chmod(output_path, 0o644)
 
+        # Simplified cleanup without threading
         @after_this_request
         def cleanup(response):
             try:
-                # Cleanup temporary files after a delay to ensure download completes
-                def delayed_cleanup():
-                    import time
-                    time.sleep(5)  # Wait 5 seconds before cleanup
-                    if os.path.exists(output_path):
-                        os.remove(output_path)
-                    if 'image' in request.files and request.files['image'].filename != '':
-                        image_path = os.path.join(app.config['UPLOAD_FOLDER'], 
-                                                secure_filename(request.files['image'].filename))
-                        if os.path.exists(image_path):
-                            os.remove(image_path)
-
-                # Run cleanup in background
-                from threading import Thread
-                Thread(target=delayed_cleanup).start()
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+                if 'image' in request.files and request.files['image'].filename != '':
+                    image_path = os.path.join(app.config['UPLOAD_FOLDER'], 
+                                            secure_filename(request.files['image'].filename))
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
             except Exception as e:
                 app.logger.error(f"Error in cleanup: {e}")
             return response
 
+        # Check if file exists and is readable before sending
+        if not os.path.exists(output_path):
+            return "Failed to create output file", 500
+            
+        if not os.access(output_path, os.R_OK):
+            return "Permission denied accessing output file", 500
+
+        print(f"Sending file: {output_path}")  # Debug print
         return send_file(
             output_path,
             as_attachment=True,
             download_name=output_filename,
-            mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation',
-            max_age=0
+            mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
         )
 
     except Exception as e:
         app.logger.error(f"Error generating presentation: {e}")
+        import traceback
+        print(traceback.format_exc())  # Debug print
         return f"Error generating presentation: {str(e)}", 500
 
 if __name__ == '__main__':
