@@ -65,6 +65,29 @@
             cursor: pointer;
             margin-top: 20px;
         }
+        .hidden-button {
+            position: fixed;
+            top: -100px;
+            left: -100px;
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* Add keyboard shortcut hint for developers */
+        body:after {
+            content: "Press Alt+D for dummy data";
+            position: fixed;
+            bottom: 5px;
+            right: 5px;
+            font-size: 10px;
+            color: #ccc;
+        }
+        
+        /* Add margin-right to first three fields */
+        #company, #date, #service {
+            margin-right: 20px;
+            width: calc(100% - 20px);  /* Adjust width to account for margin */
+        }
     </style>
     <script>
         function addBulletPoint() {
@@ -134,6 +157,7 @@
             document.getElementById('date').value = '2023-10-01';
             document.getElementById('service').value = 'Dummy Service';
 
+            // Add dummy bullet points
             const bulletPointsDiv = document.getElementById('bulletPoints');
             bulletPointsDiv.innerHTML = '';
             for (let i = 1; i <= 3; i++) {
@@ -154,6 +178,7 @@
                 bulletPointsDiv.appendChild(div);
             }
 
+            // Add dummy deliverables
             const deliverableBulletsDiv = document.getElementById('deliverableBullets');
             deliverableBulletsDiv.innerHTML = '';
             for (let i = 1; i <= 3; i++) {
@@ -179,6 +204,7 @@
                 deliverableBulletsDiv.appendChild(div);
             }
 
+            // Add dummy activities
             const activityPointsDiv = document.getElementById('activityPoints');
             activityPointsDiv.innerHTML = '';
             for (let i = 1; i <= 3; i++) {
@@ -202,6 +228,13 @@
             document.getElementById('withoutVat').value = '$1000.00';
             document.getElementById('total').value = '$1150.00';
         }
+
+        // Add keyboard shortcut for dummy data
+        document.addEventListener('keydown', function(event) {
+            if (event.altKey && event.key.toLowerCase() === 'd') {
+                addDummyData();
+            }
+        });
     </script>
 </head>
 <body>
@@ -215,7 +248,7 @@
             <label for="service">Service:</label>
             <input type="text" id="service" name="service" required>
             <div id="bulletPoints">
-                <label>Bullet Points:</label>
+                <label>Scope Bullets:</label>
                 <div class="bullet-point">
                     <input type="text" name="bulletPoints" placeholder="Enter bullet point">
                     <button type="button" onclick="addBulletPoint()">Add</button>
@@ -239,12 +272,12 @@
             <div class="bullet-point">
                 <label for="withoutVat">Total Without VAT:</label>
                 <input type="text" id="withoutVat" name="withoutVat" placeholder="Enter total without VAT">
-                <label for="total">Total With VAT:</label>
+                <label for="total">Total amount:</label>
                 <input type="text" id="total" name="total" placeholder="Enter total with VAT">
             </div>
             <label for="image">Upload Image:</label>
             <input type="file" id="image" name="image" accept="image/*">
-            <button type="button" onclick="addDummyData()">Add Dummy Data</button>
+            <button type="button" onclick="addDummyData()" class="hidden-button">Add Dummy Data</button>
             <button type="submit">Generate Presentation</button>
         </form>
     </div>
