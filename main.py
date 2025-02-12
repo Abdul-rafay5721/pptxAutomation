@@ -5,7 +5,7 @@ from pptx.enum.shapes import MSO_SHAPE_TYPE
 
 # Sample JSON data
 data = {
-    "company": "Example Corp",
+    "company": "Example",
     "Date": "2023-10-01",
     "Service": "VAPT",
     "companyNamePlaceholder": "{{companyName}}",
