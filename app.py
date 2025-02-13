@@ -3,21 +3,31 @@ import json
 import os
 from pptx import Presentation
 from pptx.util import Inches, Pt  # Add this import
-from pptx.enum.shapes import MSO_SHAPE_TYPE
+from pptx.enum.shapes import MSO_SHAPE_TYPE, MSO_SHAPE
 from pptx.dml.color import RGBColor  # Add this import
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import tempfile
 
 app = Flask(__name__)
-# Update upload folder to use system temp directory
-app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
+app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp')
+app.config['PROPOSALS_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'proposals')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Print debugging information
 print(f"Current working directory: {os.getcwd()}")
 print(f"Base directory: {BASE_DIR}")
+
+# Function to get available templates
+def get_available_templates():
+    templates = []
+    proposals_dir = app.config['PROPOSALS_FOLDER']
+    if os.path.exists(proposals_dir):
+        for file in os.listdir(proposals_dir):
+            if file.endswith('.pptx'):
+                templates.append(file)
+    return templates
 
 # Function to replace placeholders in the presentation
 def replace_placeholders(presentation, data):
@@ -81,8 +91,8 @@ def insert_deliverable_bullets(slide, placeholder, deliverable_bullets):
 
 # Function to insert deliverables and amounts into specific placeholders within a table
 def insert_deliverables_and_amounts(presentation, deliverables, amounts):
-    placeholders = [f"{{{{deliverable{i}}}}}" for i in range(1, 6)]
-    amount_placeholders = [f"{{{{amount{i}}}}}" for i in range(1, 6)]
+    placeholders = [f"{{{{deliverable{i}}}}}" for i in range(1, 8)]
+    amount_placeholders = [f"{{{{amount{i}}}}}" for i in range(1, 8)]
     for slide in presentation.slides:
         for shape in slide.shapes:
             if shape.shape_type == MSO_SHAPE_TYPE.TABLE:
@@ -117,9 +127,49 @@ def replace_image_placeholder(presentation, placeholder, image_path):
                             slide.shapes.add_picture(image_path, left, top, width=Inches(1.75), height=Inches(1.0))
                             return
 
+# Dictionary to keep track of which template has which slide number, starting positions, width, and height for inserting the rectangle
+TEMPLATE_SLIDE_MAP = {
+    "VAPT proposal.pptx": {
+        "slide_index": 38,  # Slide 39 (0-based index)
+        "left": 1.15,  # Starting position from left in cm
+        "top": 8.4,  # Starting position from top in cm
+        "width_per_week": 10.4,  # Width per week in cm
+        "height": 2  # Height in cm
+    },
+    "SAMA CSF Audit - Proposal.pptx": {
+        "slide_index": 33,  # Slide 34 (0-based index)
+        "left": 1.3,  # Starting position from left in cm
+        "top": 7.8,  # Starting position from top in cm
+        "width_per_week": 4,  # Width per week in cm
+        "height": 2  # Height in cm
+    },
+    # Add more templates and their corresponding slide numbers, positions, width, and height here
+}
+
+# Function to add a timeline rectangle based on the number of weeks
+def add_timeline_rectangle(presentation, slide_index, timeline_name, weeks, left_offset, top, width_per_week, height):
+    if slide_index < len(presentation.slides):
+        slide = presentation.slides[slide_index]
+        left = Inches(left_offset / 2.54)  # Convert cm to inches
+        top = Inches(top / 2.54)  # Convert cm to inches
+        width = Inches(width_per_week * weeks / 2.54)  # Convert cm to inches
+        height = Pt(height * 28.3465)  # Convert cm to points (1 cm = 28.3465 points)
+        shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, width, height)
+        shape.fill.solid()
+        shape.fill.fore_color.rgb = RGBColor(65, 105, 225)  # Fill color royal blue
+        shape.line.color.rgb = RGBColor(255, 255, 255)  # Border color white
+        text_frame = shape.text_frame
+        text_frame.text = timeline_name
+        for paragraph in text_frame.paragraphs:
+            for run in paragraph.runs:
+                run.font.size = Pt(14)
+                run.font.bold = True
+                run.font.color.rgb = RGBColor(255, 255, 255)
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    templates = get_available_templates()
+    return render_template('index.html', templates=templates)
 
 @app.route('/generate', methods=['POST'])
 def generate():
@@ -128,19 +178,12 @@ def generate():
         if not os.path.exists(app.config['UPLOAD_FOLDER']):
             os.makedirs(app.config['UPLOAD_FOLDER'], mode=0o777)
 
-        # Use template from current directory with more robust path handling
-        template_path = os.path.join(BASE_DIR, "template_proposal.pptx")
-        print(f"Looking for template at: {template_path}")  # Debug print
+        # Get selected template from proposals folder
+        selected_template = request.form.get('template')
+        template_path = os.path.join(app.config['PROPOSALS_FOLDER'], selected_template)
         
         if not os.path.exists(template_path):
-            # Try alternate locations
-            alt_template_path = os.path.join(os.getcwd(), "template_proposal.pptx")
-            print(f"Trying alternate path: {alt_template_path}")  # Debug print
-            
-            if os.path.exists(alt_template_path):
-                template_path = alt_template_path
-            else:
-                return f'Template file not found. Tried:\n{template_path}\n{alt_template_path}', 404
+            return f'Selected template not found: {selected_template}', 404
 
         data = {
             "company": request.form['company'],
@@ -153,7 +196,9 @@ def generate():
             "deliverableBullets": request.form.getlist('deliverableBullets'),
             "amounts": request.form.getlist('amounts'),
             "withoutVat": request.form['withoutVat'],
-            "total": request.form['total']
+            "total": request.form['total'],
+            "timelineNames": request.form.getlist('timelineNames'),
+            "weeksList": [int(weeks) for weeks in request.form.getlist('weeks')]
         }
 
         presentation = Presentation(template_path)
@@ -202,6 +247,19 @@ def generate():
                 image_file.save(image_path)
                 replace_image_placeholder(presentation, "{{image}}", image_path)
 
+        # Get template-specific settings
+        template_settings = TEMPLATE_SLIDE_MAP[selected_template]
+        slide_index = template_settings["slide_index"]
+        left_offset = template_settings["left"]
+        top = template_settings["top"]
+        width_per_week = template_settings["width_per_week"]
+        height = template_settings["height"]
+
+        # Add timeline rectangles based on the number of weeks
+        for timeline_name, weeks in zip(data["timelineNames"], data["weeksList"]):
+            add_timeline_rectangle(presentation, slide_index, timeline_name, weeks, left_offset, top, width_per_week, height)
+            left_offset += width_per_week * weeks  # Increment left offset by width per week
+
         # Generate a unique filename for the output
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         company_name = secure_filename(data['company'])
@@ -249,5 +307,5 @@ def generate():
         return f"Error generating presentation: {str(e)}", 500
 
 if __name__ == '__main__':
-    # Production settings
-    app.run(host='0.0.0.0', port=8080)
+    # Development settings for Windows
+    app.run(host='127.0.0.1', port=8080, debug=True)
