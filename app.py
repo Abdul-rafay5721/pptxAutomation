@@ -5,6 +5,7 @@ from pptx import Presentation
 from pptx.util import Inches, Pt  # Add this import
 from pptx.enum.shapes import MSO_SHAPE_TYPE, MSO_SHAPE
 from pptx.dml.color import RGBColor  # Add this import
+from pptx.enum.text import PP_ALIGN  # Add this import
 from werkzeug.utils import secure_filename
 from datetime import datetime
 import tempfile
