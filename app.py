@@ -160,6 +160,7 @@ def add_timeline_rectangle(presentation, slide_index, timeline_name, weeks, left
         shape.line.color.rgb = RGBColor(255, 255, 255)  # Border color white
         text_frame = shape.text_frame
         text_frame.text = timeline_name
+        text_frame.paragraphs[0].alignment = PP_ALIGN.CENTER  # Center-align the text
         for paragraph in text_frame.paragraphs:
             for run in paragraph.runs:
                 run.font.size = Pt(14)
