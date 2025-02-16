@@ -307,5 +307,5 @@ def generate():
         return f"Error generating presentation: {str(e)}", 500
 
 if __name__ == '__main__':
-    # Development settings for Windows
-    app.run(host='127.0.0.1', port=8080, debug=True)
+    # Development settings for Ubuntu
+    app.run(host='0.0.0.0', port=8080, debug=True)
