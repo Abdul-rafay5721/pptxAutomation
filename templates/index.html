@@ -293,6 +293,30 @@
                 addDummyData();
             }
         });
+
+        // Function to show/hide sections based on selected template
+        function toggleSections() {
+            const templateSelect = document.getElementById('template');
+            const timelinesSection = document.getElementById('timelines');
+            const bulletPointsSection = document.getElementById('bulletPoints');
+            const activityPointsSection = document.getElementById('activityPoints');
+            if (templateSelect.value === 'GRC360  PDPL Proposal.pptx') {
+                timelinesSection.style.display = 'none';
+                bulletPointsSection.style.display = 'none';
+                activityPointsSection.style.display = 'none';
+            } else {
+                timelinesSection.style.display = 'block';
+                bulletPointsSection.style.display = 'block';
+                activityPointsSection.style.display = 'block';
+            }
+        }
+
+        // Add event listener to template select dropdown
+        document.addEventListener('DOMContentLoaded', function() {
+            const templateSelect = document.getElementById('template');
+            templateSelect.addEventListener('change', toggleSections);
+            toggleSections();  // Initial check
+        });
     </script>
 </head>
 <body>

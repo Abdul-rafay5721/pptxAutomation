@@ -8,7 +8,7 @@ from pptx.dml.color import RGBColor  # Add this import
 from pptx.enum.text import PP_ALIGN  # Add this import
 from werkzeug.utils import secure_filename
 from datetime import datetime
-import tempfile
+import io  # Add this import
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'temp')
@@ -128,23 +128,36 @@ def replace_image_placeholder(presentation, placeholder, image_path):
                             slide.shapes.add_picture(image_path, left, top, width=Inches(1.75), height=Inches(1.0))
                             return
 
-# Dictionary to keep track of which template has which slide number, starting positions, width, and height for inserting the rectangle
+# Dictionary to keep track of which template has which slide number, starting positions, width, height, and whether to draw the rectangle
 TEMPLATE_SLIDE_MAP = {
     "VAPT proposal.pptx": {
         "slide_index": 38,  # Slide 39 (0-based index)
         "left": 1.15,  # Starting position from left in cm
         "top": 8.4,  # Starting position from top in cm
         "width_per_week": 10.4,  # Width per week in cm
-        "height": 2  # Height in cm
+        "height": 2,  # Height in cm
+        "draw_rectangle": True,  # Draw rectangle
+        "generate": True  # Generate shape
     },
     "SAMA CSF Audit - Proposal.pptx": {
         "slide_index": 33,  # Slide 34 (0-based index)
         "left": 1.3,  # Starting position from left in cm
         "top": 7.8,  # Starting position from top in cm
         "width_per_week": 4,  # Width per week in cm
-        "height": 2  # Height in cm
+        "height": 2,  # Height in cm
+        "draw_rectangle": True,  # Draw rectangle
+        "generate": True  # Generate shape
     },
-    # Add more templates and their corresponding slide numbers, positions, width, and height here
+    "GRC360  PDPL Proposal.pptx": {
+        "slide_index": 25,  # Slide 26 (0-based index)
+        "left": 1.5,  # Starting position from left in cm
+        "top": 7.0,  # Starting position from top in cm
+        "width_per_week": 5,  # Width per week in cm
+        "height": 2,  # Height in cm
+        "draw_rectangle": False,  # Do not draw rectangle
+        "generate": False  # Do not generate shape
+    },
+    # Add more templates and their corresponding slide numbers, positions, width, height, draw_rectangle, and generate option here
 }
 
 # Function to add a timeline rectangle based on the number of weeks
@@ -176,10 +189,6 @@ def index():
 @app.route('/generate', methods=['POST'])
 def generate():
     try:
-        # Create temp directory with proper permissions if it doesn't exist
-        if not os.path.exists(app.config['UPLOAD_FOLDER']):
-            os.makedirs(app.config['UPLOAD_FOLDER'], mode=0o777)
-
         # Get selected template from proposals folder
         selected_template = request.form.get('template')
         template_path = os.path.join(app.config['PROPOSALS_FOLDER'], selected_template)
@@ -200,7 +209,7 @@ def generate():
             "withoutVat": request.form['withoutVat'],
             "total": request.form['total'],
             "timelineNames": request.form.getlist('timelineNames'),
-            "weeksList": [int(weeks) for weeks in request.form.getlist('weeks')]
+            "weeksList": [int(weeks) for weeks in request.form.getlist('weeks') if weeks.isdigit()]
         }
 
         presentation = Presentation(template_path)
@@ -245,7 +254,7 @@ def generate():
         if 'image' in request.files:
             image_file = request.files['image']
             if image_file.filename != '':
-                image_path = os.path.join(app.config['UPLOAD_FOLDER'], secure_filename(image_file.filename))
+                image_path = secure_filename(image_file.filename)
                 image_file.save(image_path)
                 replace_image_placeholder(presentation, "{{image}}", image_path)
 
@@ -256,47 +265,28 @@ def generate():
         top = template_settings["top"]
         width_per_week = template_settings["width_per_week"]
         height = template_settings["height"]
+        draw_rectangle = template_settings["draw_rectangle"]
+        generate_shape = template_settings["generate"]
 
-        # Add timeline rectangles based on the number of weeks
-        for timeline_name, weeks in zip(data["timelineNames"], data["weeksList"]):
-            add_timeline_rectangle(presentation, slide_index, timeline_name, weeks, left_offset, top, width_per_week, height)
-            left_offset += width_per_week * weeks  # Increment left offset by width per week
+        # Add timeline rectangles based on the number of weeks if draw_rectangle is True
+        if draw_rectangle and generate_shape:
+            for timeline_name, weeks in zip(data["timelineNames"], data["weeksList"]):
+                add_timeline_rectangle(presentation, slide_index, timeline_name, weeks, left_offset, top, width_per_week, height)
+                left_offset += width_per_week * weeks  # Increment left offset by width per week
 
         # Generate a unique filename for the output
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         company_name = secure_filename(data['company'])
         output_filename = f"proposal_{company_name}_{timestamp}.pptx"
-        output_path = os.path.join(app.config['UPLOAD_FOLDER'], output_filename)
 
-        # Save the modified presentation
-        presentation.save(output_path)
-        os.chmod(output_path, 0o644)
+        # Save the modified presentation to a BytesIO object
+        output_stream = io.BytesIO()
+        presentation.save(output_stream)
+        output_stream.seek(0)
 
-        # Simplified cleanup without threading
-        @after_this_request
-        def cleanup(response):
-            try:
-                if os.path.exists(output_path):
-                    os.remove(output_path)
-                if 'image' in request.files and request.files['image'].filename != '':
-                    image_path = os.path.join(app.config['UPLOAD_FOLDER'], 
-                                            secure_filename(request.files['image'].filename))
-                    if os.path.exists(image_path):
-                        os.remove(image_path)
-            except Exception as e:
-                app.logger.error(f"Error in cleanup: {e}")
-            return response
-
-        # Check if file exists and is readable before sending
-        if not os.path.exists(output_path):
-            return "Failed to create output file", 500
-            
-        if not os.access(output_path, os.R_OK):
-            return "Permission denied accessing output file", 500
-
-        print(f"Sending file: {output_path}")  # Debug print
+        # Send the file for download
         return send_file(
-            output_path,
+            output_stream,
             as_attachment=True,
             download_name=output_filename,
             mimetype='application/vnd.openxmlformats-officedocument.presentationml.presentation'
